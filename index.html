@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VORTEX | PAINEL ADMINISTRATIVO</title>
+    <title>VORTEX | ULTRA ADMIN</title>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Configurações do seu arquivo google-services.json
+        // Configuração oficial do seu projeto vortexdev2
         const firebaseConfig = {
             apiKey: "AIzaSyACGn5I--vTEmJ6eijN2lytZiMgo2ElnW4",
             authDomain: "vortexdev2.firebaseapp.com",
@@ -22,7 +22,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- NAVEGAÇÃO ---
+        // NAVEGAÇÃO ENTRE ABAS
         window.showTab = (tabId) => {
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.getElementById(tabId).style.display = 'block';
@@ -30,11 +30,168 @@
             event.currentTarget.classList.add('active');
         };
 
-        // --- GESTÃO DE USUÁRIOS E KEYS ---
-        function carregarDados() {
+        // CARREGAR DADOS EM TEMPO REAL
+        function initDashboard() {
             onValue(ref(db, 'KeysUsers'), (snapshot) => {
                 const list = document.getElementById('userList');
                 list.innerHTML = "";
+                let ativos = 0, pausados = 0, banidos = 0;
+
+                snapshot.forEach((child) => {
+                    const data = child.val();
+                    const id = child.key;
+                    
+                    if(data.status === "ativada") ativos++;
+                    else if(data.status === "pausada") pausados++;
+                    else if(data.status === "banido") banidos++;
+
+                    list.innerHTML += `
+                        <tr class="row-status-${data.status}">
+                            <td><b>${data.key}</b></td>
+                            <td><span class="badge ${data.status}">${data.status}</span></td>
+                            <td><small>${data.uid}</small></td>
+                            <td class="actions">
+                                <button onclick="setStatus('${id}', 'ativada')">Ativar</button>
+                                <button onclick="setStatus('${id}', 'pausada')">Pausar</button>
+                                <button class="btn-ban" onclick="setStatus('${id}', 'banido')">Banir</button>
+                                <button class="btn-reset" onclick="resetHWID('${id}')">Reset</button>
+                                <button class="btn-del" onclick="deleteKey('${id}')">Excluir</button>
+                            </td>
+                        </tr>`;
+                });
+                document.getElementById('st-ativos').innerText = ativos;
+                document.getElementById('st-pausados').innerText = pausados;
+                document.getElementById('st-banidos').innerText = banidos;
+            });
+        }
+
+        // FUNÇÕES DE CONTROLE
+        window.setStatus = (id, status) => update(ref(db, `KeysUsers/${id}`), { status });
+        window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Limpo pelo ADM" });
+        window.deleteKey = (id) => confirm("Excluir permanentemente?") && remove(ref(db, `KeysUsers/${id}`));
+
+        window.gerarKeyManual = () => {
+            const prefix = document.getElementById('prefix').value || "vtx";
+            const key = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+            const id = "ADM-" + Date.now();
+            set(ref(db, `KeysUsers/${id}`), {
+                key: key,
+                status: "ativada",
+                dias: Date.now().toString(),
+                uid: "PENDENTE",
+                device: "Criada via Painel ADM",
+                validade: "1",
+                dispositivos: "1"
+            });
+            alert("Key Gerada: " + key);
+        };
+
+        window.enviarUpdate = () => {
+            const up = {
+                title: document.getElementById('up_title').value,
+                desc: document.getElementById('up_desc').value,
+                ver: document.getElementById('up_ver').value,
+                link: document.getElementById('up_link').value
+            };
+            set(ref(db, 'Config/Update'), up).then(() => alert("Sistema atualizado!"));
+        };
+
+        initDashboard();
+    </script>
+
+    <style>
+        :root { --blue: #00ccff; --red: #ff4444; --bg: #050505; --card: #111; }
+        body { margin: 0; background: var(--bg); color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SIDEBAR */
+        aside { width: 220px; background: #000; border-right: 1px solid #222; padding: 20px; flex-shrink: 0; }
+        h2 { color: var(--blue); font-size: 1rem; text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
+        .nav-btn { width: 100%; background: transparent; border: none; color: #777; padding: 12px; text-align: left; cursor: pointer; font-weight: bold; border-radius: 6px; margin-bottom: 5px; transition: 0.2s; }
+        .nav-btn:hover, .nav-btn.active { background: #1a1a1a; color: var(--blue); }
+
+        /* CONTEÚDO */
+        main { flex-grow: 1; padding: 30px; overflow-y: auto; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; border-bottom: 2px solid #222; }
+        .stat-card b { display: block; font-size: 1.5rem; color: var(--blue); }
+
+        /* TABELA PROFISSIONAL */
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 0.85rem; }
+        th { background: #1a1a1a; padding: 12px; text-align: left; color: var(--blue); }
+        td { padding: 12px; border-bottom: 1px solid #222; }
+        
+        /* BOTÕES DE AÇÃO */
+        .actions button { padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; margin-right: 2px; }
+        .actions button:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-ban { color: var(--red) !important; }
+        .btn-del { background: var(--red) !important; color: #fff !important; border: none !important; }
+        .btn-reset { color: #00ff88 !important; }
+
+        /* STATUS BADGES */
+        .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
+        .badge.ativada { background: #00ff8822; color: #00ff88; }
+        .badge.pausada { background: #ffbb0022; color: #ffbb00; }
+        .badge.banido { background: #ff444422; color: #ff4444; }
+
+        /* FORMULÁRIOS */
+        .tab-content { display: none; max-width: 800px; }
+        .form-box { background: var(--card); padding: 20px; border-radius: 10px; }
+        input, textarea { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        .btn-main { background: var(--blue); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<aside>
+    <h2>VORTEX CORE</h2>
+    <button class="nav-btn active" onclick="showTab('tab-dash')">📊 Dashboard</button>
+    <button class="nav-btn" onclick="showTab('tab-gen')">🔑 Gerar Keys</button>
+    <button class="nav-btn" onclick="showTab('tab-up')">🚀 Sistema Update</button>
+</aside>
+
+<main>
+    <div id="tab-dash" class="tab-content" style="display:block">
+        <div class="stats">
+            <div class="stat-card">Ativos<b id="st-ativos">0</b></div>
+            <div class="stat-card">Pausados<b id="st-pausados">0</b></div>
+            <div class="stat-card">Banidos<b id="st-banidos">0</b></div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>KEY</th>
+                    <th>STATUS</th>
+                    <th>UID / DISPOSITIVO</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody id="userList"></tbody>
+        </table>
+    </div>
+
+    <div id="tab-gen" class="tab-content">
+        <div class="form-box">
+            <h3>Gerar Nova Key</h3>
+            <label>Prefixo (Ex: vtx-adm)</label>
+            <input type="text" id="prefix" placeholder="vtx-dev">
+            <button class="btn-main" onclick="gerarKeyManual()">ADICIONAR AO BANCO</button>
+        </div>
+    </div>
+
+    <div id="tab-up" class="tab-content">
+        <div class="form-box">
+            <h3>Configurar Atualização</h3>
+            <input type="text" id="up_title" placeholder="Título da Update">
+            <textarea id="up_desc" placeholder="Novidades da versão..." rows="3"></textarea>
+            <input type="text" id="up_ver" placeholder="Versão (Ex: 1.0.8)">
+            <input type="text" id="up_link" placeholder="URL de Download">
+            <button class="btn-main" onclick="enviarUpdate()">PUBLICAR AGORA</button>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>                list.innerHTML = "";
                 let ativos = 0, pausados = 0, banidos = 0;
 
                 snapshot.forEach((child) => {
