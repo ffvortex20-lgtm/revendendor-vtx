@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VORTEX | ADMIN PANEL</title>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACGn5I--vTEmJ6eijN2lytZiMgo2ElnW4",
+            authDomain: "vortexdev2.firebaseapp.com",
+            databaseURL: "https://vortexdev2-default-rtdb.firebaseio.com",
+            projectId: "vortexdev2",
+            storageBucket: "vortexdev2.firebasestorage.app",
+            appId: "1:755839099190:android:f97e6d0dc860177306d397"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- FUNÇÕES DE NAVEGAÇÃO ---
+        window.showTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        };
+
+        // --- GERENCIAMENTO DE KEYS ---
+        function carregarKeys() {
+            const lista = document.getElementById('keyList');
+            onValue(ref(db, 'KeysUsers'), (snapshot) => {
+                lista.innerHTML = "";
+                snapshot.forEach((child) => {
+                    const data = child.val();
+                    const id = child.key;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${data.key}</td>
+                        <td>${data.status}</td>
+                        <td>${data.uid.substring(0,8)}...</td>
+                        <td>
+                            <button onclick="alterarStatus('${id}', '${data.status}')">Pausar/Ativar</button>
+                            <button class="btn-del" onclick="removerKey('${id}')">Excluir</button>
+                        </td>
+                    `;
+                    lista.appendChild(row);
+                });
+            });
+        }
+
+        window.alterarStatus = (id, statusAtual) => {
+            const novoStatus = statusAtual === "ativada" ? "pausada" : "ativada";
+            update(ref(db, `KeysUsers/${id}`), { status: novoStatus });
+        };
+
+        window.removerKey = (id) => {
+            if(confirm("Deseja apagar esta key?")) remove(ref(db, `KeysUsers/${id}`));
+        };
+
+        // --- SISTEMA DE UPDATE ---
+        window.enviarUpdate = async () => {
+            const upData = {
+                title: document.getElementById('up_title').value,
+                desc: document.getElementById('up_desc').value,
+                ver: document.getElementById('up_ver').value,
+                link: document.getElementById('up_link').value,
+                date: Date.now()
+            };
+            await set(ref(db, 'Config/Update'), upData);
+            alert("Atualização enviada com sucesso!");
+        };
+
+        // Carregar dados iniciais de update
+        get(ref(db, 'Config/Update')).then(s => {
+            if(s.exists()){
+                const d = s.val();
+                document.getElementById('up_title').value = d.title;
+                document.getElementById('up_ver').value = d.ver;
+            }
+        });
+
+        carregarKeys();
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+        
+        body { background: #0a0a0a; color: #fff; font-family: 'Rajdhani', sans-serif; margin: 0; display: flex; }
+        
+        /* Sidebar */
+        nav { width: 250px; background: #000; height: 100vh; border-right: 1px solid #00ccff; padding: 20px; }
+        nav h2 { font-family: 'Orbitron'; color: #00ccff; font-size: 1.2rem; }
+        nav button { width: 100%; padding: 12px; margin: 5px 0; background: transparent; border: 1px solid #333; color: #fff; cursor: pointer; text-align: left; transition: 0.3s; }
+        nav button:hover { border-color: #00ccff; background: rgba(0,204,255,0.1); }
+
+        /* Main Content */
+        main { flex: 1; padding: 40px; overflow-y: auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Tables & Forms */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #111; }
+        th, td { padding: 15px; border: 1px solid #222; text-align: left; }
+        th { background: #00ccff22; color: #00ccff; font-family: 'Orbitron'; font-size: 0.8rem; }
+        
+        .form-group { margin-bottom: 15px; max-width: 500px; }
+        label { display: block; margin-bottom: 5px; color: #888; }
+        input, textarea { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 5px; }
+        
+        button { cursor: pointer; background: #00ccff; color: #000; border: none; padding: 8px 15px; font-weight: bold; border-radius: 4px; }
+        .btn-del { background: #ff4444; color: #fff; margin-left: 5px; }
+        .btn-save { background: #00ff88; padding: 15px 30px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h2>VORTEX ADM</h2>
+    <hr style="border-color: #111">
+    <button onclick="showTab('tab-keys')">🔑 Gerenciar Keys</button>
+    <button onclick="showTab('tab-update')">🚀 Sistema Update</button>
+</nav>
+
+<main>
+    <div id="tab-keys" class="tab-content active">
+        <h1>Gerenciamento de Keys</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>KEY</th>
+                    <th>STATUS</th>
+                    <th>DISPOSITIVO (ID)</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody id="keyList">
+                </tbody>
+        </table>
+    </div>
+
+    <div id="tab-update" class="tab-content">
+        <h1>Enviar Atualização</h1>
+        <div class="form-group">
+            <label>Título da Atualização (Title)</label>
+            <input type="text" id="up_title" placeholder="Ex: Nova Versão Disponível">
+        </div>
+        <div class="form-group">
+            <label>Descrição (Desc)</label>
+            <textarea id="up_desc" rows="4" placeholder="O que mudou?"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Versão Atual (Ver)</label>
+            <input type="text" id="up_ver" placeholder="Ex: 1.0.5">
+        </div>
+        <div class="form-group">
+            <label>Link de Download (Link)</label>
+            <input type="text" id="up_link" placeholder="https://...">
+        </div>
+        <button class="btn-save" onclick="enviarUpdate()">PUBLICAR ATUALIZAÇÃO</button>
+    </div>
+</main>
+
+</body>
+</html>
