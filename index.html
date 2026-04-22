@@ -9,7 +9,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Mantenha suas configs aqui
         const firebaseConfig = {
             apiKey: "AIzaSyACGn5I--vTEmJ6eijN2lytZiMgo2ElnW4",
             authDomain: "vortexdev2.firebaseapp.com",
@@ -22,18 +21,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Troca de abas corrigida (removido erro de 'event' global)
-        window.showTab = (tabId, element) => {
+        // Troca de abas
+        window.showTab = (tabId) => {
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.getElementById(tabId).style.display = 'block';
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            if(element) element.classList.add('active');
+            event.currentTarget.classList.add('active');
         };
 
+        // Carregar Painel
         function init() {
             onValue(ref(db, 'KeysUsers'), (snapshot) => {
                 const list = document.getElementById('userTable');
-                let rows = ""; // Usar string acumuladora é mais performático e evita bugs visuais
+                list.innerHTML = "";
                 let ativos = 0, banidos = 0;
 
                 snapshot.forEach((child) => {
@@ -42,11 +42,11 @@
                     if(data.status === "ativada") ativos++;
                     if(data.status === "banido") banidos++;
 
-                    rows += `
+                    list.innerHTML += `
                         <tr>
-                            <td>${data.key || 'N/A'}</td>
+                            <td>${data.key}</td>
                             <td><span class="status ${data.status}">${data.status}</span></td>
-                            <td class="uid-col">${data.uid || '---'}</td>
+                            <td class="uid-col">${data.uid}</td>
                             <td class="actions">
                                 <button onclick="upStat('${id}','ativada')">Ativar</button>
                                 <button onclick="upStat('${id}','pausada')">Pausar</button>
@@ -56,7 +56,6 @@
                             </td>
                         </tr>`;
                 });
-                list.innerHTML = rows;
                 document.getElementById('count-ativos').innerText = ativos;
                 document.getElementById('count-banidos').innerText = banidos;
             });
@@ -64,14 +63,15 @@
 
         window.upStat = (id, s) => update(ref(db, `KeysUsers/${id}`), { status: s });
         window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Limpo" });
-        window.delKey = (id) => confirm("Deseja realmente apagar?") && remove(ref(db, `KeysUsers/${id}`));
+        window.delKey = (id) => confirm("Apagar?") && remove(ref(db, `KeysUsers/${id}`));
 
         window.gerarKey = () => {
             const k = "vtx-" + Math.floor(1000 + Math.random() * 9000);
             const id = "ADM-" + Date.now();
             set(ref(db, `KeysUsers/${id}`), {
                 key: k, status: "ativada", uid: "PENDENTE", validade: "1", dias: Date.now().toString()
-            }).then(() => alert("Key Gerada: " + k));
+            });
+            alert("Key: " + k);
         };
 
         window.enviarUpdate = () => {
@@ -81,65 +81,60 @@
                 ver: document.getElementById('up_v').value,
                 link: document.getElementById('up_l').value
             };
-            set(ref(db, 'Config/Update'), up).then(() => alert("Update Publicado!"));
+            set(ref(db, 'Config/Update'), up).then(() => alert("Enviado!"));
         };
 
         init();
     </script>
 
     <style>
-        * { box-sizing: border-box; } /* Essencial para não bugar o layout */
-        body { margin: 0; background: #050505; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        body { margin: 0; background: #050505; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
+        /* Menu Lateral */
         aside { width: 220px; background: #000; border-right: 1px solid #1a1a1a; padding: 20px; flex-shrink: 0; }
-        .logo { color: #00ccff; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; font-size: 1.2rem; }
-        
-        .nav-link { display: block; padding: 12px; color: #666; text-decoration: none; cursor: pointer; border-radius: 5px; margin-bottom: 5px; font-weight: bold; transition: 0.3s; }
+        .logo { color: #00ccff; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
+        .nav-link { display: block; padding: 12px; color: #666; text-decoration: none; cursor: pointer; border-radius: 5px; margin-bottom: 5px; font-weight: bold; }
         .nav-link:hover, .nav-link.active { background: #111; color: #00ccff; }
 
+        /* Conteúdo Principal */
         main { flex-grow: 1; padding: 30px; overflow-y: auto; background: #080808; }
-        
         .stats { display: flex; gap: 20px; margin-bottom: 30px; }
         .card { background: #111; padding: 20px; border-radius: 10px; flex: 1; border-bottom: 2px solid #00ccff; }
         .card b { font-size: 1.5rem; color: #00ccff; display: block; }
 
-        .table-container { background: #111; border-radius: 10px; overflow-x: auto; border: 1px solid #1a1a1a; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #1a1a1a; padding: 15px; text-align: left; color: #888; font-size: 0.75rem; text-transform: uppercase; }
-        td { padding: 12px 15px; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; vertical-align: middle; }
-        
-        .uid-col { color: #555; font-family: monospace; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Tabela */
+        .table-container { background: #111; border-radius: 10px; overflow: hidden; border: 1px solid #1a1a1a; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1a1a1a; padding: 15px; text-align: left; color: #444; font-size: 0.8rem; }
+        td { padding: 12px 15px; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
+        .uid-col { color: #555; font-family: monospace; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 
-        .status { padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
-        .status.ativada { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
-        .status.banido { background: rgba(255, 68, 68, 0.1); color: #ff4444; }
-        .status.pausada { background: rgba(255, 187, 0, 0.1); color: #ffbb00; }
+        /* Status e Botões */
+        .status { padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
+        .status.ativada { background: #00ff8822; color: #00ff88; }
+        .status.banido { background: #ff444422; color: #ff4444; }
 
-        .actions { display: flex; gap: 6px; }
-        .actions button { padding: 6px 10px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; border-radius: 4px; font-size: 0.7rem; transition: 0.2s; }
+        .actions { display: flex; gap: 5px; }
+        .actions button { padding: 5px 8px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; border-radius: 4px; font-size: 0.7rem; }
         .actions button:hover { border-color: #00ccff; color: #00ccff; }
         .actions .ban { color: #ff4444; }
         .actions .reset { color: #00ff88; }
         .actions .del { background: #ff4444; color: #fff; border: none; }
-        .actions .del:hover { background: #cc3333; color: #fff; }
 
-        .tab-content { display: none; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .box { background: #111; padding: 25px; border-radius: 10px; max-width: 500px; border: 1px solid #1a1a1a; }
-        input, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #222; color: #fff; border-radius: 5px; outline: none; }
-        input:focus { border-color: #00ccff; }
-        .btn-main { background: #00ccff; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
-        .btn-main:hover { background: #0099cc; }
+        /* Forms */
+        .tab-content { display: none; }
+        .box { background: #111; padding: 25px; border-radius: 10px; max-width: 500px; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #222; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        .btn-main { background: #00ccff; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
 <body>
 
 <aside>
     <div class="logo">VORTEX CORE</div>
-    <a class="nav-link active" onclick="showTab('dash', this)">📊 Dashboard</a>
-    <a class="nav-link" onclick="showTab('gen', this)">➕ Gerar Key</a>
-    <a class="nav-link" onclick="showTab('up', this)">🚀 Enviar Update</a>
+    <a class="nav-link active" onclick="showTab('dash')">📊 Dashboard</a>
+    <a class="nav-link" onclick="showTab('gen')">➕ Gerar Key</a>
+    <a class="nav-link" onclick="showTab('up')">🚀 Enviar Update</a>
 </aside>
 
 <main>
@@ -166,7 +161,6 @@
     <div id="gen" class="tab-content">
         <div class="box">
             <h3>Gerar Key Manual</h3>
-            <p style="color:#666; font-size: 0.8rem;">A nova key será salva automaticamente no banco de dados.</p>
             <button class="btn-main" onclick="gerarKey()">GERAR NOVA KEY AGORA</button>
         </div>
     </div>
@@ -174,679 +168,12 @@
     <div id="up" class="tab-content">
         <div class="box">
             <h3>Sistema de Update</h3>
-            <input type="text" id="up_t" placeholder="Título da Atualização">
-            <textarea id="up_d" placeholder="O que mudou?" rows="4"></textarea>
-            <input type="text" id="up_v" placeholder="Versão (ex: 1.0.5)">
-            <input type="text" id="up_l" placeholder="Link Direto para Download">
+            <input type="text" id="up_t" placeholder="Título">
+            <textarea id="up_d" placeholder="Novidades"></textarea>
+            <input type="text" id="up_v" placeholder="Versão">
+            <input type="text" id="up_l" placeholder="Link Direto">
             <button class="btn-main" onclick="enviarUpdate()">PUBLICAR ATUALIZAÇÃO</button>
         </div>
-    </div>
-</main>
-
-</body>
-</html>            <div class="stat-box">Ativos<b id="stat-ativos">0</b></div>
-            <div class="stat-box">Banidos<b id="stat-banidos">0</b></div>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>KEY</th>
-                    <th>STATUS</th>
-                    <th>UID</th>
-                    <th>AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody id="userTableBody"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-gen" class="tab-content">
-        <div class="form-card">
-            <h3>Gerar Key Manual</h3>
-            <button class="btn-main" onclick="gerarKey()">GERAR NOVA KEY NO BANCO</button>
-        </div>
-    </div>
-
-    <div id="tab-up" class="tab-content">
-        <div class="form-card">
-            <h3>Enviar Atualização</h3>
-            <input type="text" id="u_title" placeholder="Título">
-            <textarea id="u_desc" placeholder="Descrição"></textarea>
-            <input type="text" id="u_ver" placeholder="Versão">
-            <input type="text" id="u_link" placeholder="Link">
-            <button class="btn-main" onclick="enviarUpdate()">PUBLICAR</button>
-        </div>
-    </div>
-</main>
-
-</body>
-</html>                list.innerHTML = "";
-                let ativos = 0, pausados = 0, banidos = 0;
-
-                snapshot.forEach((child) => {
-                    const data = child.val();
-                    const id = child.key;
-                    
-                    if(data.status === "ativada") ativos++;
-                    else if(data.status === "pausada") pausados++;
-                    else if(data.status === "banido") banidos++;
-
-                    list.innerHTML += `
-                        <tr class="row-status-${data.status}">
-                            <td><b>${data.key}</b></td>
-                            <td><span class="badge ${data.status}">${data.status}</span></td>
-                            <td><small>${data.uid}</small></td>
-                            <td class="actions">
-                                <button onclick="setStatus('${id}', 'ativada')">Ativar</button>
-                                <button onclick="setStatus('${id}', 'pausada')">Pausar</button>
-                                <button class="btn-ban" onclick="setStatus('${id}', 'banido')">Banir</button>
-                                <button class="btn-reset" onclick="resetHWID('${id}')">Reset</button>
-                                <button class="btn-del" onclick="deleteKey('${id}')">Excluir</button>
-                            </td>
-                        </tr>`;
-                });
-                document.getElementById('st-ativos').innerText = ativos;
-                document.getElementById('st-pausados').innerText = pausados;
-                document.getElementById('st-banidos').innerText = banidos;
-            });
-        }
-
-        // FUNÇÕES DE CONTROLE
-        window.setStatus = (id, status) => update(ref(db, `KeysUsers/${id}`), { status });
-        window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Limpo pelo ADM" });
-        window.deleteKey = (id) => confirm("Excluir permanentemente?") && remove(ref(db, `KeysUsers/${id}`));
-
-        window.gerarKeyManual = () => {
-            const prefix = document.getElementById('prefix').value || "vtx";
-            const key = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const id = "ADM-" + Date.now();
-            set(ref(db, `KeysUsers/${id}`), {
-                key: key,
-                status: "ativada",
-                dias: Date.now().toString(),
-                uid: "PENDENTE",
-                device: "Criada via Painel ADM",
-                validade: "1",
-                dispositivos: "1"
-            });
-            alert("Key Gerada: " + key);
-        };
-
-        window.enviarUpdate = () => {
-            const up = {
-                title: document.getElementById('up_title').value,
-                desc: document.getElementById('up_desc').value,
-                ver: document.getElementById('up_ver').value,
-                link: document.getElementById('up_link').value
-            };
-            set(ref(db, 'Config/Update'), up).then(() => alert("Sistema atualizado!"));
-        };
-
-        initDashboard();
-    </script>
-
-    <style>
-        :root { --blue: #00ccff; --red: #ff4444; --bg: #050505; --card: #111; }
-        body { margin: 0; background: var(--bg); color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* SIDEBAR */
-        aside { width: 220px; background: #000; border-right: 1px solid #222; padding: 20px; flex-shrink: 0; }
-        h2 { color: var(--blue); font-size: 1rem; text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
-        .nav-btn { width: 100%; background: transparent; border: none; color: #777; padding: 12px; text-align: left; cursor: pointer; font-weight: bold; border-radius: 6px; margin-bottom: 5px; transition: 0.2s; }
-        .nav-btn:hover, .nav-btn.active { background: #1a1a1a; color: var(--blue); }
-
-        /* CONTEÚDO */
-        main { flex-grow: 1; padding: 30px; overflow-y: auto; }
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; border-bottom: 2px solid #222; }
-        .stat-card b { display: block; font-size: 1.5rem; color: var(--blue); }
-
-        /* TABELA PROFISSIONAL */
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 0.85rem; }
-        th { background: #1a1a1a; padding: 12px; text-align: left; color: var(--blue); }
-        td { padding: 12px; border-bottom: 1px solid #222; }
-        
-        /* BOTÕES DE AÇÃO */
-        .actions button { padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; margin-right: 2px; }
-        .actions button:hover { border-color: var(--blue); color: var(--blue); }
-        .btn-ban { color: var(--red) !important; }
-        .btn-del { background: var(--red) !important; color: #fff !important; border: none !important; }
-        .btn-reset { color: #00ff88 !important; }
-
-        /* STATUS BADGES */
-        .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
-        .badge.ativada { background: #00ff8822; color: #00ff88; }
-        .badge.pausada { background: #ffbb0022; color: #ffbb00; }
-        .badge.banido { background: #ff444422; color: #ff4444; }
-
-        /* FORMULÁRIOS */
-        .tab-content { display: none; max-width: 800px; }
-        .form-box { background: var(--card); padding: 20px; border-radius: 10px; }
-        input, textarea { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 5px; box-sizing: border-box; }
-        .btn-main { background: var(--blue); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; }
-    </style>
-</head>
-<body>
-
-<aside>
-    <h2>VORTEX CORE</h2>
-    <button class="nav-btn active" onclick="showTab('tab-dash')">📊 Dashboard</button>
-    <button class="nav-btn" onclick="showTab('tab-gen')">🔑 Gerar Keys</button>
-    <button class="nav-btn" onclick="showTab('tab-up')">🚀 Sistema Update</button>
-</aside>
-
-<main>
-    <div id="tab-dash" class="tab-content" style="display:block">
-        <div class="stats">
-            <div class="stat-card">Ativos<b id="st-ativos">0</b></div>
-            <div class="stat-card">Pausados<b id="st-pausados">0</b></div>
-            <div class="stat-card">Banidos<b id="st-banidos">0</b></div>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>KEY</th>
-                    <th>STATUS</th>
-                    <th>UID / DISPOSITIVO</th>
-                    <th>AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody id="userList"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-gen" class="tab-content">
-        <div class="form-box">
-            <h3>Gerar Nova Key</h3>
-            <label>Prefixo (Ex: vtx-adm)</label>
-            <input type="text" id="prefix" placeholder="vtx-dev">
-            <button class="btn-main" onclick="gerarKeyManual()">ADICIONAR AO BANCO</button>
-        </div>
-    </div>
-
-    <div id="tab-up" class="tab-content">
-        <div class="form-box">
-            <h3>Configurar Atualização</h3>
-            <input type="text" id="up_title" placeholder="Título da Update">
-            <textarea id="up_desc" placeholder="Novidades da versão..." rows="3"></textarea>
-            <input type="text" id="up_ver" placeholder="Versão (Ex: 1.0.8)">
-            <input type="text" id="up_link" placeholder="URL de Download">
-            <button class="btn-main" onclick="enviarUpdate()">PUBLICAR AGORA</button>
-        </div>
-    </div>
-</main>
-
-</body>
-</html>                list.innerHTML = "";
-                let ativos = 0, pausados = 0, banidos = 0;
-
-                snapshot.forEach((child) => {
-                    const data = child.val();
-                    const id = child.key;
-                    
-                    if(data.status === "ativada") ativos++;
-                    else if(data.status === "pausada") pausados++;
-                    else if(data.status === "banido") banidos++;
-
-                    const row = `
-                        <tr>
-                            <td>${data.key}</td>
-                            <td><span class="status-badge ${data.status}">${data.status}</span></td>
-                            <td><small>${data.uid}</small></td>
-                            <td>
-                                <button class="act-btn" onclick="mudarStatus('${id}', 'ativada')">Ativar</button>
-                                <button class="act-btn" onclick="mudarStatus('${id}', 'pausada')">Pausar</button>
-                                <button class="act-btn ban" onclick="mudarStatus('${id}', 'banido')">Banir</button>
-                                <button class="act-btn reset" onclick="resetHWID('${id}')">Reset HWID</button>
-                                <button class="act-btn del" onclick="excluirKey('${id}')">Excluir</button>
-                            </td>
-                        </tr>`;
-                    list.innerHTML += row;
-                });
-                document.getElementById('count-ativos').innerText = ativos;
-                document.getElementById('count-banidos').innerText = banidos;
-            });
-        }
-
-        window.mudarStatus = (id, status) => update(ref(db, `KeysUsers/${id}`), { status });
-        window.excluirKey = (id) => confirm("Excluir esta key permanentemente?") && remove(ref(db, `KeysUsers/${id}`));
-        window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Aguardando novo login" });
-
-        window.gerarKeyManual = () => {
-            const novaKey = "vtx-adm-" + Math.floor(1000 + Math.random() * 9000);
-            const id = "MANUAL-" + Date.now();
-            set(ref(db, `KeysUsers/${id}`), {
-                key: novaKey,
-                status: "ativada",
-                dias: Date.now().toString(),
-                uid: "PENDENTE",
-                device: "Criada pelo ADM",
-                validade: "1",
-                dispositivos: "1"
-            });
-            alert("Key Criada: " + novaKey);
-        };
-
-        // --- SISTEMA DE UPDATE ---
-        window.enviarUpdate = () => {
-            const updateObj = {
-                title: document.getElementById('up_title').value,
-                desc: document.getElementById('up_desc').value,
-                ver: document.getElementById('up_ver').value,
-                link: document.getElementById('up_link').value
-            };
-            set(ref(db, 'Config/Update'), updateObj).then(() => alert("Atualização publicada!"));
-        };
-
-        carregarDados();
-    </script>
-
-    <style>
-        :root { --primary: #00ccff; --bg: #0a0a0a; --card: #141414; --text: #eee; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; }
-        
-        /* Sidebar */
-        aside { width: 240px; background: #000; border-right: 1px solid #222; padding: 20px; display: flex; flex-direction: column; }
-        h2 { color: var(--primary); font-size: 1.2rem; text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
-        .nav-btn { background: transparent; border: none; color: #888; padding: 15px; text-align: left; cursor: pointer; font-weight: bold; transition: 0.3s; border-radius: 8px; margin-bottom: 5px; }
-        .nav-btn:hover, .nav-btn.active { background: #1a1a1a; color: var(--primary); }
-
-        /* Main Content */
-        main { flex: 1; padding: 30px; overflow-y: auto; }
-        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary); }
-        .stat-card span { font-size: 2rem; font-weight: bold; color: var(--primary); }
-
-        /* Table */
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
-        th { text-align: left; background: #1a1a1a; padding: 15px; color: var(--primary); font-size: 0.8rem; }
-        td { padding: 12px 15px; border-bottom: 1px solid #222; font-size: 0.9rem; }
-        
-        /* Badges & Buttons */
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
-        .status-badge.ativada { background: #00ff8822; color: #00ff88; }
-        .status-badge.pausada { background: #ffbb0022; color: #ffbb00; }
-        .status-badge.banido { background: #ff444422; color: #ff4444; }
-
-        .act-btn { padding: 5px 10px; border: 1px solid #444; background: transparent; color: #ccc; cursor: pointer; border-radius: 4px; font-size: 0.75rem; margin-right: 3px; }
-        .act-btn:hover { border-color: var(--primary); color: var(--primary); }
-        .act-btn.ban { color: #ff4444; }
-        .act-btn.del { background: #ff4444; border: none; color: white; }
-        .act-btn.reset { color: #00ccff; }
-
-        /* Forms */
-        .form-container { background: var(--card); padding: 25px; border-radius: 12px; max-width: 500px; }
-        input, textarea { width: 100%; padding: 12px; margin-bottom: 15px; background: #0a0a0a; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-        .btn-submit { background: var(--primary); color: #000; border: none; padding: 15px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<aside>
-    <h2>VORTEX ADM</h2>
-    <button class="nav-btn active" onclick="showTab('dash')">📊 Dashboard</button>
-    <button class="nav-btn" onclick="showTab('gen')">🔑 Gerar Manual</button>
-    <button class="nav-btn" onclick="showTab('update')">🚀 Sistema Update</button>
-</aside>
-
-<main>
-    <div id="dash" class="tab-content">
-        <div class="stats-grid">
-            <div class="stat-card">Ativos<br><span id="count-ativos">0</span></div>
-            <div class="stat-card">Banidos<br><span id="count-banidos">0</span></div>
-        </div>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>CHAVE</th>
-                    <th>STATUS</th>
-                    <th>DISPOSITIVO (UID)</th>
-                    <th>AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody id="userList"></tbody>
-        </table>
-    </div>
-
-    <div id="gen" class="tab-content" style="display:none">
-        <h1>Gerar Key Administrativa</h1>
-        <div class="form-container">
-            <p>Clique abaixo para gerar uma key que não depende de IP imediato.</p>
-            <button class="btn-submit" onclick="gerarKeyManual()">CRIAR NOVA KEY</button>
-        </div>
-    </div>
-
-    <div id="update" class="tab-content" style="display:none">
-        <h1>Configurar Atualização</h1>
-        <div class="form-container">
-            <input type="text" id="up_title" placeholder="Título da Atualização">
-            <textarea id="up_desc" placeholder="Descrição/Novidades" rows="3"></textarea>
-            <input type="text" id="up_ver" placeholder="Versão Atual (Ex: 1.0.5)">
-            <input type="text" id="up_link" placeholder="URL do novo APK/Painel">
-            <button class="btn-submit" onclick="enviarUpdate()">PUBLICAR UPDATE</button>
-        </div>
-    </div>
-</main>
-
-</body>
-</html>                snapshot.forEach((child) => {
-                    const data = child.val();
-                    const id = child.key;
-
-                    if(data.status === "ativada") ativos++;
-                    else if(data.status === "pausada") pausados++;
-                    else if(data.status === "banido") banidos++;
-
-                    const row = document.createElement('tr');
-                    row.className = `status-${data.status}`;
-                    row.innerHTML = `
-                        <td><b>${data.key}</b></td>
-                        <td><span class="badge">${data.status}</span></td>
-                        <td>${data.uid}</td>
-                        <td>
-                            <button onclick="mudarStatus('${id}', 'ativada')">Ativar</button>
-                            <button onclick="mudarStatus('${id}', 'pausada')">Pausar</button>
-                            <button class="btn-ban" onclick="mudarStatus('${id}', 'banido')">Banir</button>
-                            <button class="btn-reset" onclick="resetDevice('${id}')">Reset HWID</button>
-                            <button class="btn-del" onclick="remover('${id}')">Excluir</button>
-                        </td>
-                    `;
-                    lista.appendChild(row);
-                });
-
-                document.getElementById('count-ativos').innerText = ativos;
-                document.getElementById('count-pausados').innerText = pausados;
-                document.getElementById('count-banidos').innerText = banidos;
-            });
-        }
-
-        // --- AÇÕES ---
-        window.gerarKeyManual = async () => {
-            const prefixo = document.getElementById('gen_prefix').value || "vtx-adm";
-            const novaKey = `${prefixo}-${Math.floor(10000 + Math.random() * 89999)}`;
-            const tempID = "MANUAL-" + Date.now();
-
-            await set(ref(db, `KeysUsers/${tempID}`), {
-                key: novaKey,
-                status: "ativada",
-                dias: Date.now().toString(),
-                uid: "Aguardando Login...",
-                device: "Criada pelo ADM",
-                validade: "1",
-                dispositivos: "0"
-            });
-            alert("Key Gerada: " + novaKey);
-        };
-
-        window.mudarStatus = (id, novoStatus) => {
-            update(ref(db, `KeysUsers/${id}`), { status: novoStatus });
-        };
-
-        window.resetDevice = (id) => {
-            update(ref(db, `KeysUsers/${id}`), { 
-                uid: "RESETADO", 
-                device: "Dispositivo Limpo pelo ADM" 
-            });
-            alert("Dispositivo resetado! O próximo aparelho que usar essa key será o novo dono.");
-        };
-
-        window.remover = (id) => {
-            if(confirm("Apagar permanentemente?")) remove(ref(db, `KeysUsers/${id}`));
-        };
-
-        // --- UPDATE ---
-        window.enviarUpdate = async () => {
-            const upData = {
-                title: document.getElementById('up_title').value,
-                desc: document.getElementById('up_desc').value,
-                ver: document.getElementById('up_ver').value,
-                link: document.getElementById('up_link').value
-            };
-            await set(ref(db, 'Config/Update'), upData);
-            alert("Update enviado!");
-        };
-
-        carregarPainel();
-    </script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
-        
-        body { background: #050505; color: #e0e0e0; font-family: 'Rajdhani', sans-serif; margin: 0; display: flex; height: 100vh; }
-        
-        /* Sidebar */
-        nav { width: 260px; background: #000; border-right: 1px solid #00ccff; padding: 25px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-        nav h2 { font-family: 'Orbitron'; color: #00ccff; text-shadow: 0 0 10px #00ccff; margin-bottom: 40px; text-align: center; }
-        nav button { width: 100%; padding: 14px; margin: 8px 0; background: #111; border: 1px solid #222; color: #aaa; cursor: pointer; text-align: left; transition: 0.3s; border-radius: 8px; }
-        nav button:hover { border-color: #00ccff; color: #fff; background: rgba(0,204,255,0.1); }
-
-        /* Content */
-        main { flex: 1; padding: 40px; overflow-y: auto; background: linear-gradient(135deg, #0a0a0a 0%, #000 100%); }
-        .tab-content { display: none; animation: fadeIn 0.4s; }
-        .tab-content.active { display: block; }
-
-        /* Stats Cards */
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
-        .card-stat { background: #111; padding: 20px; border-radius: 12px; border-bottom: 3px solid #333; text-align: center; }
-        .card-stat h3 { margin: 0; font-size: 0.8rem; color: #888; text-transform: uppercase; }
-        .card-stat p { margin: 10px 0 0; font-size: 2rem; font-family: 'Orbitron'; color: #00ccff; }
-
-        /* Tables */
-        table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
-        th { padding: 15px; text-align: left; color: #555; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
-        td { padding: 15px; background: #111; border-top: 1px solid #222; border-bottom: 1px solid #222; }
-        td:first-child { border-left: 1px solid #222; border-radius: 10px 0 0 10px; }
-        td:last-child { border-right: 1px solid #222; border-radius: 0 10px 10px 0; }
-
-        .badge { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #222; }
-        .status-ativada .badge { color: #00ff88; background: rgba(0,255,136,0.1); }
-        .status-pausada .badge { color: #ffbb00; background: rgba(255,187,0,0.1); }
-        .status-banido .badge { color: #ff4444; background: rgba(255,68,68,0.1); }
-
-        /* Forms */
-        .form-box { background: #111; padding: 30px; border-radius: 15px; max-width: 600px; border: 1px solid #222; }
-        input, textarea { width: 100%; padding: 12px; margin: 10px 0 20px; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
-        
-        /* Buttons */
-        button { cursor: pointer; border-radius: 6px; font-weight: 700; border: none; padding: 8px 12px; font-family: 'Rajdhani'; transition: 0.2s; }
-        .btn-main { background: #00ccff; color: #000; padding: 15px 30px; width: 100%; font-size: 1rem; }
-        .btn-ban { background: #550000; color: #ff4444; }
-        .btn-reset { background: #004455; color: #00ccff; }
-        .btn-del { background: #ff4444; color: #fff; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
-</head>
-<body>
-
-<nav>
-    <h2>VORTEX CORE</h2>
-    <button onclick="showTab('tab-dash')">📊 Dashboard</button>
-    <button onclick="showTab('tab-gen')">➕ Gerar Keys</button>
-    <button onclick="showTab('tab-update')">🚀 Sistema Update</button>
-</nav>
-
-<main>
-    <div id="tab-dash" class="tab-content active">
-        <div class="stats">
-            <div class="card-stat"><h3>Ativos</h3><p id="count-ativos">0</p></div>
-            <div class="card-stat"><h3>Pausados</h3><p id="count-pausados">0</p></div>
-            <div class="card-stat"><h3>Banidos</h3><p id="count-banidos">0</p></div>
-        </div>
-
-        <h1>Gerenciamento de Usuários</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>Chave de Acesso</th>
-                    <th>Status</th>
-                    <th>UID do Dispositivo</th>
-                    <th>Ações de Controle</th>
-                </tr>
-            </thead>
-            <tbody id="keyList"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-gen" class="tab-content">
-        <h1>Criar Novas Keys</h1>
-        <div class="form-box">
-            <label>Prefixo da Key (Ex: VORTEX-VIP)</label>
-            <input type="text" id="gen_prefix" placeholder="vtx-dev">
-            <button class="btn-main" onclick="gerarKeyManual()">GERAR E SALVAR NO BANCO</button>
-            <p style="color: #666; margin-top: 20px;">* As keys geradas aqui aparecerão automaticamente no Dashboard para os usuários.</p>
-        </div>
-    </div>
-
-    <div id="tab-update" class="tab-content">
-        <h1>Enviar Atualização Global</h1>
-        <div class="form-box">
-            <label>Título (Title)</label>
-            <input type="text" id="up_title" placeholder="Aviso de Manutenção">
-            <label>Descrição (Desc)</label>
-            <textarea id="up_desc" rows="3" placeholder="Novas funções adicionadas..."></textarea>
-            <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label>Versão (Ver)</label>
-                    <input type="text" id="up_ver" placeholder="2.0.1">
-                </div>
-                <div style="flex: 2;">
-                    <label>Link (Link)</label>
-                    <input type="text" id="up_link" placeholder="https://mediafire.com/file">
-                </div>
-            </div>
-            <button class="btn-main" onclick="enviarUpdate()">LANÇAR ATUALIZAÇÃO</button>
-        </div>
-    </div>
-</main>
-
-</body>
-</html>                    const id = child.key;
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${data.key}</td>
-                        <td>${data.status}</td>
-                        <td>${data.uid.substring(0,8)}...</td>
-                        <td>
-                            <button onclick="alterarStatus('${id}', '${data.status}')">Pausar/Ativar</button>
-                            <button class="btn-del" onclick="removerKey('${id}')">Excluir</button>
-                        </td>
-                    `;
-                    lista.appendChild(row);
-                });
-            });
-        }
-
-        window.alterarStatus = (id, statusAtual) => {
-            const novoStatus = statusAtual === "ativada" ? "pausada" : "ativada";
-            update(ref(db, `KeysUsers/${id}`), { status: novoStatus });
-        };
-
-        window.removerKey = (id) => {
-            if(confirm("Deseja apagar esta key?")) remove(ref(db, `KeysUsers/${id}`));
-        };
-
-        // --- SISTEMA DE UPDATE ---
-        window.enviarUpdate = async () => {
-            const upData = {
-                title: document.getElementById('up_title').value,
-                desc: document.getElementById('up_desc').value,
-                ver: document.getElementById('up_ver').value,
-                link: document.getElementById('up_link').value,
-                date: Date.now()
-            };
-            await set(ref(db, 'Config/Update'), upData);
-            alert("Atualização enviada com sucesso!");
-        };
-
-        // Carregar dados iniciais de update
-        get(ref(db, 'Config/Update')).then(s => {
-            if(s.exists()){
-                const d = s.val();
-                document.getElementById('up_title').value = d.title;
-                document.getElementById('up_ver').value = d.ver;
-            }
-        });
-
-        carregarKeys();
-    </script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
-        
-        body { background: #0a0a0a; color: #fff; font-family: 'Rajdhani', sans-serif; margin: 0; display: flex; }
-        
-        /* Sidebar */
-        nav { width: 250px; background: #000; height: 100vh; border-right: 1px solid #00ccff; padding: 20px; }
-        nav h2 { font-family: 'Orbitron'; color: #00ccff; font-size: 1.2rem; }
-        nav button { width: 100%; padding: 12px; margin: 5px 0; background: transparent; border: 1px solid #333; color: #fff; cursor: pointer; text-align: left; transition: 0.3s; }
-        nav button:hover { border-color: #00ccff; background: rgba(0,204,255,0.1); }
-
-        /* Main Content */
-        main { flex: 1; padding: 40px; overflow-y: auto; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* Tables & Forms */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #111; }
-        th, td { padding: 15px; border: 1px solid #222; text-align: left; }
-        th { background: #00ccff22; color: #00ccff; font-family: 'Orbitron'; font-size: 0.8rem; }
-        
-        .form-group { margin-bottom: 15px; max-width: 500px; }
-        label { display: block; margin-bottom: 5px; color: #888; }
-        input, textarea { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 5px; }
-        
-        button { cursor: pointer; background: #00ccff; color: #000; border: none; padding: 8px 15px; font-weight: bold; border-radius: 4px; }
-        .btn-del { background: #ff4444; color: #fff; margin-left: 5px; }
-        .btn-save { background: #00ff88; padding: 15px 30px; margin-top: 10px; }
-    </style>
-</head>
-<body>
-
-<nav>
-    <h2>VORTEX ADM</h2>
-    <hr style="border-color: #111">
-    <button onclick="showTab('tab-keys')">🔑 Gerenciar Keys</button>
-    <button onclick="showTab('tab-update')">🚀 Sistema Update</button>
-</nav>
-
-<main>
-    <div id="tab-keys" class="tab-content active">
-        <h1>Gerenciamento de Keys</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>KEY</th>
-                    <th>STATUS</th>
-                    <th>DISPOSITIVO (ID)</th>
-                    <th>AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody id="keyList">
-                </tbody>
-        </table>
-    </div>
-
-    <div id="tab-update" class="tab-content">
-        <h1>Enviar Atualização</h1>
-        <div class="form-group">
-            <label>Título da Atualização (Title)</label>
-            <input type="text" id="up_title" placeholder="Ex: Nova Versão Disponível">
-        </div>
-        <div class="form-group">
-            <label>Descrição (Desc)</label>
-            <textarea id="up_desc" rows="4" placeholder="O que mudou?"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Versão Atual (Ver)</label>
-            <input type="text" id="up_ver" placeholder="Ex: 1.0.5">
-        </div>
-        <div class="form-group">
-            <label>Link de Download (Link)</label>
-            <input type="text" id="up_link" placeholder="https://...">
-        </div>
-        <button class="btn-save" onclick="enviarUpdate()">PUBLICAR ATUALIZAÇÃO</button>
     </div>
 </main>
 
