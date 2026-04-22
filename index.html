@@ -9,6 +9,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // Mantenha suas configs aqui
         const firebaseConfig = {
             apiKey: "AIzaSyACGn5I--vTEmJ6eijN2lytZiMgo2ElnW4",
             authDomain: "vortexdev2.firebaseapp.com",
@@ -21,19 +22,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Troca de abas
-        window.showTab = (tabId) => {
+        // Troca de abas corrigida (removido erro de 'event' global)
+        window.showTab = (tabId, element) => {
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.getElementById(tabId).style.display = 'block';
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            if(element) element.classList.add('active');
         };
 
-        // Carregar Painel
         function init() {
             onValue(ref(db, 'KeysUsers'), (snapshot) => {
                 const list = document.getElementById('userTable');
-                list.innerHTML = "";
+                let rows = ""; // Usar string acumuladora é mais performático e evita bugs visuais
                 let ativos = 0, banidos = 0;
 
                 snapshot.forEach((child) => {
@@ -42,11 +42,11 @@
                     if(data.status === "ativada") ativos++;
                     if(data.status === "banido") banidos++;
 
-                    list.innerHTML += `
+                    rows += `
                         <tr>
-                            <td>${data.key}</td>
+                            <td>${data.key || 'N/A'}</td>
                             <td><span class="status ${data.status}">${data.status}</span></td>
-                            <td class="uid-col">${data.uid}</td>
+                            <td class="uid-col">${data.uid || '---'}</td>
                             <td class="actions">
                                 <button onclick="upStat('${id}','ativada')">Ativar</button>
                                 <button onclick="upStat('${id}','pausada')">Pausar</button>
@@ -56,6 +56,7 @@
                             </td>
                         </tr>`;
                 });
+                list.innerHTML = rows;
                 document.getElementById('count-ativos').innerText = ativos;
                 document.getElementById('count-banidos').innerText = banidos;
             });
@@ -63,15 +64,14 @@
 
         window.upStat = (id, s) => update(ref(db, `KeysUsers/${id}`), { status: s });
         window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Limpo" });
-        window.delKey = (id) => confirm("Apagar?") && remove(ref(db, `KeysUsers/${id}`));
+        window.delKey = (id) => confirm("Deseja realmente apagar?") && remove(ref(db, `KeysUsers/${id}`));
 
         window.gerarKey = () => {
             const k = "vtx-" + Math.floor(1000 + Math.random() * 9000);
             const id = "ADM-" + Date.now();
             set(ref(db, `KeysUsers/${id}`), {
                 key: k, status: "ativada", uid: "PENDENTE", validade: "1", dias: Date.now().toString()
-            });
-            alert("Key: " + k);
+            }).then(() => alert("Key Gerada: " + k));
         };
 
         window.enviarUpdate = () => {
@@ -81,60 +81,65 @@
                 ver: document.getElementById('up_v').value,
                 link: document.getElementById('up_l').value
             };
-            set(ref(db, 'Config/Update'), up).then(() => alert("Enviado!"));
+            set(ref(db, 'Config/Update'), up).then(() => alert("Update Publicado!"));
         };
 
         init();
     </script>
 
     <style>
-        body { margin: 0; background: #050505; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; } /* Essencial para não bugar o layout */
+        body { margin: 0; background: #050505; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Menu Lateral */
         aside { width: 220px; background: #000; border-right: 1px solid #1a1a1a; padding: 20px; flex-shrink: 0; }
-        .logo { color: #00ccff; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
-        .nav-link { display: block; padding: 12px; color: #666; text-decoration: none; cursor: pointer; border-radius: 5px; margin-bottom: 5px; font-weight: bold; }
+        .logo { color: #00ccff; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; font-size: 1.2rem; }
+        
+        .nav-link { display: block; padding: 12px; color: #666; text-decoration: none; cursor: pointer; border-radius: 5px; margin-bottom: 5px; font-weight: bold; transition: 0.3s; }
         .nav-link:hover, .nav-link.active { background: #111; color: #00ccff; }
 
-        /* Conteúdo Principal */
         main { flex-grow: 1; padding: 30px; overflow-y: auto; background: #080808; }
+        
         .stats { display: flex; gap: 20px; margin-bottom: 30px; }
         .card { background: #111; padding: 20px; border-radius: 10px; flex: 1; border-bottom: 2px solid #00ccff; }
         .card b { font-size: 1.5rem; color: #00ccff; display: block; }
 
-        /* Tabela */
-        .table-container { background: #111; border-radius: 10px; overflow: hidden; border: 1px solid #1a1a1a; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #1a1a1a; padding: 15px; text-align: left; color: #444; font-size: 0.8rem; }
-        td { padding: 12px 15px; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
-        .uid-col { color: #555; font-family: monospace; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+        .table-container { background: #111; border-radius: 10px; overflow-x: auto; border: 1px solid #1a1a1a; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { background: #1a1a1a; padding: 15px; text-align: left; color: #888; font-size: 0.75rem; text-transform: uppercase; }
+        td { padding: 12px 15px; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; vertical-align: middle; }
+        
+        .uid-col { color: #555; font-family: monospace; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Status e Botões */
-        .status { padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
-        .status.ativada { background: #00ff8822; color: #00ff88; }
-        .status.banido { background: #ff444422; color: #ff4444; }
+        .status { padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
+        .status.ativada { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
+        .status.banido { background: rgba(255, 68, 68, 0.1); color: #ff4444; }
+        .status.pausada { background: rgba(255, 187, 0, 0.1); color: #ffbb00; }
 
-        .actions { display: flex; gap: 5px; }
-        .actions button { padding: 5px 8px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; border-radius: 4px; font-size: 0.7rem; }
+        .actions { display: flex; gap: 6px; }
+        .actions button { padding: 6px 10px; border: 1px solid #333; background: #000; color: #ccc; cursor: pointer; border-radius: 4px; font-size: 0.7rem; transition: 0.2s; }
         .actions button:hover { border-color: #00ccff; color: #00ccff; }
         .actions .ban { color: #ff4444; }
         .actions .reset { color: #00ff88; }
         .actions .del { background: #ff4444; color: #fff; border: none; }
+        .actions .del:hover { background: #cc3333; color: #fff; }
 
-        /* Forms */
-        .tab-content { display: none; }
-        .box { background: #111; padding: 25px; border-radius: 10px; max-width: 500px; }
-        input, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #222; color: #fff; border-radius: 5px; box-sizing: border-box; }
-        .btn-main { background: #00ccff; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .box { background: #111; padding: 25px; border-radius: 10px; max-width: 500px; border: 1px solid #1a1a1a; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #222; color: #fff; border-radius: 5px; outline: none; }
+        input:focus { border-color: #00ccff; }
+        .btn-main { background: #00ccff; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
+        .btn-main:hover { background: #0099cc; }
     </style>
 </head>
 <body>
 
 <aside>
     <div class="logo">VORTEX CORE</div>
-    <a class="nav-link active" onclick="showTab('dash')">📊 Dashboard</a>
-    <a class="nav-link" onclick="showTab('gen')">➕ Gerar Key</a>
-    <a class="nav-link" onclick="showTab('up')">🚀 Enviar Update</a>
+    <a class="nav-link active" onclick="showTab('dash', this)">📊 Dashboard</a>
+    <a class="nav-link" onclick="showTab('gen', this)">➕ Gerar Key</a>
+    <a class="nav-link" onclick="showTab('up', this)">🚀 Enviar Update</a>
 </aside>
 
 <main>
@@ -161,6 +166,7 @@
     <div id="gen" class="tab-content">
         <div class="box">
             <h3>Gerar Key Manual</h3>
+            <p style="color:#666; font-size: 0.8rem;">A nova key será salva automaticamente no banco de dados.</p>
             <button class="btn-main" onclick="gerarKey()">GERAR NOVA KEY AGORA</button>
         </div>
     </div>
@@ -168,134 +174,17 @@
     <div id="up" class="tab-content">
         <div class="box">
             <h3>Sistema de Update</h3>
-            <input type="text" id="up_t" placeholder="Título">
-            <textarea id="up_d" placeholder="Novidades"></textarea>
-            <input type="text" id="up_v" placeholder="Versão">
-            <input type="text" id="up_l" placeholder="Link Direto">
+            <input type="text" id="up_t" placeholder="Título da Atualização">
+            <textarea id="up_d" placeholder="O que mudou?" rows="4"></textarea>
+            <input type="text" id="up_v" placeholder="Versão (ex: 1.0.5)">
+            <input type="text" id="up_l" placeholder="Link Direto para Download">
             <button class="btn-main" onclick="enviarUpdate()">PUBLICAR ATUALIZAÇÃO</button>
         </div>
     </div>
 </main>
 
 </body>
-</html>                list.innerHTML = "";
-                let countAtivos = 0, countBanidos = 0;
-
-                snapshot.forEach((child) => {
-                    const data = child.val();
-                    const id = child.key;
-                    
-                    if(data.status === "ativada") countAtivos++;
-                    if(data.status === "banido") countBanidos++;
-
-                    const row = `
-                        <tr>
-                            <td>${data.key}</td>
-                            <td><span class="badge ${data.status}">${data.status}</span></td>
-                            <td><small>${data.uid || 'Sem UID'}</small></td>
-                            <td>
-                                <div class="action-grid">
-                                    <button class="btn-sm" onclick="mudarStatus('${id}', 'ativada')">Ativar</button>
-                                    <button class="btn-sm" onclick="mudarStatus('${id}', 'pausada')">Pausar</button>
-                                    <button class="btn-sm btn-ban" onclick="mudarStatus('${id}', 'banido')">Banir</button>
-                                    <button class="btn-sm btn-reset" onclick="resetHWID('${id}')">Reset</button>
-                                    <button class="btn-sm btn-del" onclick="remover('${id}')">Remover</button>
-                                </div>
-                            </td>
-                        </tr>`;
-                    list.innerHTML += row;
-                });
-                document.getElementById('stat-ativos').innerText = countAtivos;
-                document.getElementById('stat-banidos').innerText = countBanidos;
-            });
-        }
-
-        // --- FUNÇÕES DE CONTROLE ---
-        window.mudarStatus = (id, status) => update(ref(db, `KeysUsers/${id}`), { status });
-        window.remover = (id) => confirm("Excluir?") && remove(ref(db, `KeysUsers/${id}`));
-        window.resetHWID = (id) => update(ref(db, `KeysUsers/${id}`), { uid: "RESETADO", device: "Resetado pelo ADM" });
-
-        window.gerarKey = () => {
-            const novaKey = "vtx-adm-" + Math.floor(Math.random() * 9999);
-            const id = "MANUAL-" + Date.now();
-            set(ref(db, `KeysUsers/${id}`), {
-                key: novaKey,
-                status: "ativada",
-                dias: Date.now().toString(),
-                uid: "PENDENTE",
-                validade: "1",
-                dispositivos: "1"
-            });
-            alert("Key Criada: " + novaKey);
-        };
-
-        window.enviarUpdate = () => {
-            const data = {
-                title: document.getElementById('u_title').value,
-                desc: document.getElementById('u_desc').value,
-                ver: document.getElementById('u_ver').value,
-                link: document.getElementById('u_link').value
-            };
-            set(ref(db, 'Config/Update'), data).then(() => alert("Update Enviado!"));
-        };
-
-        carregarPainel();
-    </script>
-
-    <style>
-        :root { --blue: #00ccff; --bg: #0a0a0a; --card: #151515; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; height: 100vh; }
-        
-        /* SIDEBAR FIXA */
-        aside { width: 220px; background: #000; border-right: 1px solid #222; display: flex; flex-direction: column; padding: 20px; }
-        h2 { color: var(--blue); font-size: 1.2rem; text-align: center; margin-bottom: 40px; }
-        .menu-item { background: none; border: none; color: #888; padding: 15px; text-align: left; cursor: pointer; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
-        .menu-item:hover, .menu-item.active { background: #1a1a1a; color: var(--blue); }
-
-        /* ÁREA DE CONTEÚDO */
-        main { flex: 1; padding: 30px; overflow-y: auto; }
-        .stats { display: flex; gap: 20px; margin-bottom: 30px; }
-        .stat-box { background: var(--card); padding: 20px; border-radius: 12px; flex: 1; border-bottom: 2px solid var(--blue); }
-        .stat-box b { font-size: 1.8rem; color: var(--blue); display: block; }
-
-        /* TABELA ORGANIZADA */
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
-        th { background: #1a1a1a; padding: 15px; text-align: left; font-size: 0.8rem; color: #555; }
-        td { padding: 12px 15px; border-bottom: 1px solid #222; font-size: 0.9rem; }
-        
-        /* BOTÕES PEQUENOS */
-        .action-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-        .btn-sm { padding: 5px 8px; font-size: 0.7rem; border: 1px solid #333; background: #000; color: #fff; border-radius: 4px; cursor: pointer; }
-        .btn-sm:hover { border-color: var(--blue); color: var(--blue); }
-        .btn-ban { color: #ff4444; }
-        .btn-del { background: #ff4444 !important; border: none; }
-        .btn-reset { color: #00ff88; }
-
-        /* STATUS BADGES */
-        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .badge.ativada { background: #00ff8822; color: #00ff88; }
-        .badge.banido { background: #ff444422; color: #ff4444; }
-
-        /* FORMULÁRIOS */
-        .tab-content { display: none; max-width: 600px; }
-        .form-card { background: var(--card); padding: 30px; border-radius: 12px; }
-        input, textarea { width: 100%; padding: 12px; margin-bottom: 15px; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
-        .btn-main { background: var(--blue); color: #000; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<aside>
-    <h2>VORTEX ADM</h2>
-    <button class="menu-item active" onclick="showTab('tab-dash')">Dashboard</button>
-    <button class="menu-item" onclick="showTab('tab-gen')">Gerar Key</button>
-    <button class="menu-item" onclick="showTab('tab-up')">Updates</button>
-</aside>
-
-<main>
-    <div id="tab-dash" class="tab-content" style="display:block">
-        <div class="stats">
-            <div class="stat-box">Ativos<b id="stat-ativos">0</b></div>
+</html>            <div class="stat-box">Ativos<b id="stat-ativos">0</b></div>
             <div class="stat-box">Banidos<b id="stat-banidos">0</b></div>
         </div>
         <table>
